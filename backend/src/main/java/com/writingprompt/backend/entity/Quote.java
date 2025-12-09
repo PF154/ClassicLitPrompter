@@ -27,16 +27,16 @@ public class Quote {
     private Integer pageNumber;
 
     @Column(nullable = false)
-    private Integer upvotes;
+    private Integer upvotes = 0;
 
     @Column(nullable = false)
-    private Integer downvotes;
+    private Integer downvotes = 0;
 
     @Column(nullable = false, name = "created_at")
     private LocalDateTime createdAt;
 
     @PrePersist
-    protected void OnCreate() {
+    protected void onCreate() {
         createdAt = LocalDateTime.now();
     }
 
