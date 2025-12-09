@@ -23,7 +23,7 @@ public class Quote {
     @Column(nullable = false)
     private Integer year;
 
-    @Column(nullable = false, name = "page_number")
+    @Column(name = "page_number")
     private Integer pageNumber;
 
     @Column(nullable = false)
