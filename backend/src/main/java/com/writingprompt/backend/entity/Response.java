@@ -3,6 +3,8 @@ package com.writingprompt.backend.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 
 @Entity
 @Table(name = "responses")
@@ -15,6 +17,7 @@ public class Response {
     // Foreign key to Quote
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quote_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Quote quote;
 
     // User response text
