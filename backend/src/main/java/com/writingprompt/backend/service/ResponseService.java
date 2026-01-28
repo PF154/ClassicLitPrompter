@@ -1,5 +1,6 @@
 package com.writingprompt.backend.service;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -7,10 +8,12 @@ import java.util.stream.Collectors;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 
+import com.writingprompt.backend.entity.DailyResponseCount;
 import com.writingprompt.backend.entity.Quote;
 import com.writingprompt.backend.entity.Response;
 import com.writingprompt.backend.entity.ResponseVote;
 import com.writingprompt.backend.entity.VoteType;
+import com.writingprompt.backend.repository.DailyResponseCountRepository;
 import com.writingprompt.backend.repository.QuoteRepository;
 import com.writingprompt.backend.repository.ResponseVoteRepository;
 import com.writingprompt.backend.repository.ResponseRepository;
@@ -21,15 +24,18 @@ public class ResponseService {
     private final ResponseRepository responseRepository;
     private final ResponseVoteRepository responseVoteRepository;
     private final QuoteRepository quoteRepository;
+    private final DailyResponseCountRepository dailyResponseCountRepository;
 
     public ResponseService(
         ResponseRepository responseRepository,
         ResponseVoteRepository responseVoteRepository,
-        QuoteRepository quoteRepository
+        QuoteRepository quoteRepository,
+        DailyResponseCountRepository dailyResponseCountRepository
     ) {
         this.responseRepository = responseRepository;
         this.responseVoteRepository = responseVoteRepository;
         this.quoteRepository = quoteRepository;
+        this.dailyResponseCountRepository = dailyResponseCountRepository;
     }
 
     /**
@@ -40,11 +46,13 @@ public class ResponseService {
      * @return New response object if it was successfully created, otherwise null
      */
     public Response submitResponse(@NonNull Long quoteId, String text, String ipAddress) {
-        // Check if user IP has already submitted a response
+        
+        // Make sure quote actually exists
         Optional<Quote> quoteToRespondToOptional = quoteRepository.findById(quoteId);
         if (!quoteToRespondToOptional.isPresent()) return null;
         Quote quoteToRespondTo = quoteToRespondToOptional.get();
 
+        // Check if user IP has already submitted a response
         Optional<Response> existingResponseOptional = responseRepository.findAll().stream()
             .filter(r -> r.getQuote().getId().equals(quoteId) && r.getIpAddress().equals(ipAddress))
             .findFirst();
@@ -54,6 +62,33 @@ public class ResponseService {
             // For now, return null
             return null;
         }
+
+        // If the user can respond, we want to make sure they haven't exceeded their response limit for the day
+        LocalDate date = LocalDate.now();
+
+        Optional<DailyResponseCount> dailyResponseCountOptional
+            = dailyResponseCountRepository.findByIpAddressAndResponseDate(ipAddress, date);
+
+        DailyResponseCount dailyResponseCount;
+        if (!dailyResponseCountOptional.isPresent()) {
+            // Create the count entity if it doesn't exist yet
+            dailyResponseCount = new DailyResponseCount(ipAddress);
+            dailyResponseCount.setCount(0); 
+        }
+        else {
+            dailyResponseCount = dailyResponseCountOptional.get();
+        } 
+
+        Integer count = dailyResponseCount.getCount();
+        if (count >= 2) {
+            // Ideally, we'd want to display a message here.
+            // In liu of that, just reject the submission
+            return null;
+        }
+
+        // If we're good to submit, update the response count
+        dailyResponseCount.setCount(count+1);
+
 
         // Validate word count
         if (text.split("\\s+").length > 750) {
@@ -65,6 +100,7 @@ public class ResponseService {
 
         // Save and return
         responseRepository.save(newResponse);
+        dailyResponseCountRepository.save(dailyResponseCount);
         return newResponse;
     }
 
