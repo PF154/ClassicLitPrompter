@@ -60,7 +60,7 @@ public class ResponseService {
         if (existingResponseOptional.isPresent()) {
             // Don't know what returning an error would look like
             // For now, return null
-            return null;
+            // return null;
         }
 
         // If the user can respond, we want to make sure they haven't exceeded their response limit for the day
@@ -83,7 +83,7 @@ public class ResponseService {
         if (count >= 2) {
             // Ideally, we'd want to display a message here.
             // In liu of that, just reject the submission
-            return null;
+            // return null;
         }
 
         // If we're good to submit, update the response count

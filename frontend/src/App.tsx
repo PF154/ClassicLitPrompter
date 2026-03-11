@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
-import type { Quote } from './types';
+import type { Quote, Response } from './types';
 import QuoteDisplay from './components/QuoteDisplay';
 import ResponseForm from './components/ResponseForm';
+import ResponseList from './components/ResponseList';
 import './App.css'
 
 function App() {
   // Use state so that the page updates when variables change
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [responses, setResponses] = useState<Response[]>([]);
 
   useEffect(() => {
     fetchRandomQuote();
@@ -27,6 +30,19 @@ function App() {
     }
   };
 
+
+  const fetchResponses = async (quoteId: number) => {
+    try {
+      const response = await fetch(`http://localhost:8080/api/quotes/${quoteId}/responses`);
+      const data = await response.json();
+      setResponses(data);
+    }
+    catch (error)
+    {
+      console.error('Error fetching responses:', error);
+    }
+  }
+
   // Method to be passed to the ResponseForm to define submission behavior
   const handleResponseSubmit = async (text: string) => {
     try {
@@ -39,12 +55,38 @@ function App() {
         body: JSON.stringify({ text: text })
       })
 
-      const data = await response.json();
-      console.log('Response submitted:', data);
+      console.log('Submit response status:', response.status);
+      console.log('Submit response ok:', response.ok);
+
+      if (response.ok) {
+        setHasSubmitted(true);
+        await fetchResponses(quote.id);
+      }
     } catch (error) {
       console.error('Error:', error);
     }
   };
+
+  const handleVote = async (responseId: number, voteType: 'UP' | 'DOWN') => {
+    try {
+      if (responseId == null || quote === null) return;
+
+      const response = await fetch(`http://localhost:8080/api/responses/${responseId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ voteType: voteType })
+      });
+
+      if (response.ok) {
+        // Refetch responses to get updated vote counts
+        await fetchResponses(quote.id);
+      }
+    } catch (error) {
+      console.error('Error in casting vote:', error);
+    }
+  }
 
   if (loading) {
     return <div>Loading...</div>;
@@ -59,7 +101,11 @@ function App() {
     <div className="App">
       <h1>Writing Prompt</h1>
       <QuoteDisplay quote={quote} />
-      <ResponseForm onSubmit={handleResponseSubmit} />
+      {!hasSubmitted ? (
+        <ResponseForm onSubmit={handleResponseSubmit} />
+      ) : (
+        <ResponseList responses={responses} onVote={handleVote} />
+      )}
     </div>
   );
 }
